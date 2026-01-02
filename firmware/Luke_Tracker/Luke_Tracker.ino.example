@@ -1,0 +1,128 @@
+#include <SPI.h>
+#include <WiFi.h>
+#include <TinyGPS++.h>
+
+// CONFIGURATION
+const char* DEVICE_ID = "Luke_Tracker";
+const char* DEVICE_TOKEN = "YOUR_SECURE_TOKEN_HERE"; // Must match .env
+const char* SERVER_HOST = "YOUR_VPS_IP_HERE";
+const int SERVER_PORT = 9080;
+
+struct Network { char ssid[32]; char pass[32]; };
+
+// Primary Networks (Home/Work)
+Network primaryNetworks[] = {
+  {"YOUR_HOME_SSID", "YOUR_HOME_PASSWORD"},
+  {"YOUR_WORK_SSID", "YOUR_WORK_PASSWORD"}
+};
+
+// Backup Network (Hotspot)
+Network backupNetwork = {"YOUR_HOTSPOT_SSID", "YOUR_HOTSPOT_PASSWORD"};
+
+// Hardware Config
+static const int RXPin = 4, TXPin = 3;
+static const uint32_t GPSBaud = 9600;
+
+TinyGPSPlus gps;
+HardwareSerial gpsSerial(1);
+WiFiClient client;
+
+unsigned long lastSend = 0;
+const unsigned long INTERVAL = 300000; // 5 minutes
+unsigned long lastPrimaryRetry = 0;
+const unsigned long RETRY_INTERVAL = 3600000; // 1 hour
+bool onBackup = false;
+
+void setup() {
+  Serial.begin(115200);
+  gpsSerial.begin(GPSBaud, SERIAL_8N1, RXPin, TXPin);
+  connectSmart();
+}
+
+void loop() {
+  while (gpsSerial.available() > 0) {
+    gps.encode(gpsSerial.read());
+  }
+
+  if (millis() - lastSend > INTERVAL) {
+    if (gps.location.isValid()) {
+      checkConnection();
+      sendData(gps.location.lat(), gps.location.lng());
+      lastSend = millis();
+    }
+  }
+}
+
+void checkConnection() {
+  if (onBackup && (millis() - lastPrimaryRetry > RETRY_INTERVAL)) {
+    WiFi.disconnect();
+    connectSmart();
+    lastPrimaryRetry = millis();
+  } else if (WiFi.status() != WL_CONNECTED) {
+    connectSmart();
+  } else {
+    if (!testServerConnection()) {
+      WiFi.disconnect();
+      connectSmart();
+    }
+  }
+}
+
+void connectSmart() {
+  for (int i = 0; i < 2; i++) {
+    WiFi.begin(primaryNetworks[i].ssid, primaryNetworks[i].pass);
+    if (waitForWifi()) {
+      if (testServerConnection()) {
+        onBackup = false;
+        return;
+      }
+    }
+  }
+  
+  WiFi.begin(backupNetwork.ssid, backupNetwork.pass);
+  if (waitForWifi()) {
+    onBackup = true;
+  }
+}
+
+bool waitForWifi() {
+  int retries = 0;
+  while (WiFi.status() != WL_CONNECTED && retries < 20) {
+    delay(500);
+    retries++;
+  }
+  return WiFi.status() == WL_CONNECTED;
+}
+
+bool testServerConnection() {
+  if (client.connect(SERVER_HOST, SERVER_PORT)) {
+    client.stop();
+    return true;
+  }
+  return false;
+}
+
+void sendData(double lat, double lon) {
+  if (client.connect(SERVER_HOST, SERVER_PORT)) {
+    String ssid = WiFi.SSID();
+    String body = "{\"device_id\":\"" + String(DEVICE_ID) + 
+                  "\",\"token\":\"" + String(DEVICE_TOKEN) + 
+                  "\",\"lat\":" + String(lat, 6) + 
+                  ",\"lon\":" + String(lon, 6) + 
+                  ",\"ssid\":\"" + ssid + "\"}";
+
+    client.println("POST /api/track HTTP/1.1");
+    client.println("Host: " + String(SERVER_HOST));
+    client.println("Content-Type: application/json");
+    client.print("Content-Length: ");
+    client.println(body.length());
+    client.println();
+    client.println(body);
+    
+    unsigned long timeout = millis();
+    while (client.connected() && millis() - timeout < 2000) {
+      if (client.available()) client.read();
+    }
+    client.stop();
+  }
+}
