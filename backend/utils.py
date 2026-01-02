@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-LOG_DIR = "logs"
+LOG_DIR = "../logs"
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR, exist_ok=True)
 

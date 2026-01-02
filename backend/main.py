@@ -33,7 +33,7 @@ def receive_track(data: TrackData, db: Session = Depends(database.get_db)):
     ).order_by(models.Location.timestamp.desc()).first()
 
     if last_location and last_location.network_ssid != data.ssid:
-        msg = f"📡 *TROCA DE REDE DETECTADA*\n\n🔄 De: {last_location.network_ssid}\n✅ Para: {data.ssid}\n🔋 Bateria: {data.battery}%"
+        msg = f"📡 *TROCA DE REDE*\n🔄 De: {last_location.network_ssid}\n✅ Para: {data.ssid}\n🔋 Bat: {data.battery}%"
         utils.send_telegram_alert(msg)
 
     existing_address = None
@@ -63,7 +63,7 @@ def receive_track(data: TrackData, db: Session = Depends(database.get_db)):
     db.add(new_location)
     db.commit()
     
-    utils.get_logger().info(f"{data.device_id} | {data.ssid} | {data.lat},{data.lon}")
+    utils.get_logger().info(f"{data.device_id}|{data.ssid}|{data.lat},{data.lon}")
 
     last_stay = db.query(models.Stay).filter(
         models.Stay.device_id == data.device_id
@@ -79,7 +79,7 @@ def receive_track(data: TrackData, db: Session = Depends(database.get_db)):
             duration = (current_time - last_stay.start_time).total_seconds()
             last_stay.duration_sec = duration
             if duration > 1800 and not last_stay.alert_sent:
-                utils.send_telegram_alert(f"🚨 *PARADO HÁ 30 MIN*\n📍 {stay_addr.formatted_address}")
+                utils.send_telegram_alert(f"🚨 *PARADO > 30 MIN*\n📍 {stay_addr.formatted_address}")
                 last_stay.alert_sent = True
             db.commit()
         else:

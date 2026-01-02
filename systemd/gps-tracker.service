@@ -1,11 +1,11 @@
 [Unit]
-Description=GPS Tracker Backend Luke
+Description=Luke Tracker Backend
 After=network.target
 
 [Service]
 User=adm_luke
 Group=adm_luke
-WorkingDirectory=/home/adm_luke/scripts/solar-tracker
+WorkingDirectory=/home/adm_luke/scripts/solar-tracker/backend
 Environment="PATH=/home/adm_luke/scripts/solar-tracker/venv/bin:/usr/local/bin:/usr/bin:/bin"
 ExecStart=/home/adm_luke/scripts/solar-tracker/venv/bin/uvicorn main:app --host 0.0.0.0 --port 9080
 Restart=always

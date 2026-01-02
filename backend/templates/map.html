@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Luke Tracker</title>
+    <meta charset="utf-8">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>#map { height: 100vh; width: 100%; }</style>
 </head>
@@ -11,13 +12,11 @@
     <script>
         var map = L.map('map').setView([-30.0238, -51.1828], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
         var points = [
             {% for p in points %}
             [{{ p.lat }}, {{ p.lon }}],
             {% endfor %}
         ];
-
         if(points.length > 0) {
             var polyline = L.polyline(points, {color: 'blue'}).addTo(map);
             map.fitBounds(polyline.getBounds());
