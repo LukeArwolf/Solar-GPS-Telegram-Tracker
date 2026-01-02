@@ -303,12 +303,3 @@ VPS Linux (バックエンド) と ESP32 (ハードウェア) 向けに設計さ
 5. ESP32に書き込みます。
 
 ---
-
-### 🔧 Maintenance & Updates
-
-**Commit changes to Git:**
-
-```bash
-git add README.md
-git commit -m "Fix README formatting and update features"
-git push -u origin main
